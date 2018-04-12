@@ -1,0 +1,224 @@
+#include <boost/thread.hpp>
+
+#include "math.h"
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <iostream>
+
+#include "Comm.h"
+
+
+#include "chassis/t20_k_rpm.h"
+
+t20_k_rpm::t20_k_rpm(){
+
+	min_rpm_k_ = 1.0;
+	mid_rpm_k1_ = 1.0;
+	mid_rpm_k2_ = 1.0;
+	max_rpm_k_ = 1.0;
+
+	min_rpm_ = -1.0;
+	mid_rpm1_ = -100.0;
+	mid_rpm2_ = 100.0;
+	max_rpm_ = 1.0;
+
+	Config::getConfig("chassis_type",Chassis_Type_);
+	if(Chassis_Type_ == "T20KH")
+	{
+		k_para_ = "t20.para";
+		std::cout<<"TTTTTTTTTTTT"<<std::endl;
+	}else if(Chassis_Type_ == "L16KH")
+	{
+		k_para_ = "l16.para";
+		std::cout<<"llllllllllll"<<std::endl;
+	}
+
+}
+
+t20_k_rpm::~t20_k_rpm(){
+
+}
+void t20_k_rpm::load_para(){
+	std::fstream in;
+	in.open(k_para_, std::ios_base::in | std::ios_base::binary);
+	m_k_para_.clear();
+
+	std::string str;
+	while(std::getline(in,str)){
+		F32 rpm = 0;
+		F32 k = 0;
+		std::vector<std::string> vlist;
+		cComm::SplitString(str," ",vlist);
+		if(vlist.size() > 1){
+			str = vlist[0];
+			cComm::ConvertToNum(rpm,str);
+			//rpm = speed2rpm(rpm);
+			str = vlist[1];
+			cComm::ConvertToNum(k,str);
+			set_k_para(rpm,k);
+			std::cout<<"load rpm:"<<rpm<<" k:"<<k<<std::endl;
+		}
+
+
+	}
+
+	std::map<F32,F32>::iterator it_b = m_k_para_.begin();
+	if( it_b != m_k_para_.end() ){
+		min_rpm_ = it_b->first;
+		min_rpm_k_ = it_b->second;
+	}
+
+	std::map<F32,F32>::reverse_iterator it_e = m_k_para_.rbegin();
+	if( it_e != m_k_para_.rend() ){
+		max_rpm_ = it_e->first;
+		max_rpm_k_ = it_e->second;
+	}
+
+	std::map<F32,F32>::iterator it = m_k_para_.begin();
+	for( ; it != m_k_para_.end(); ++it ){
+		F32 rpm = it->first;
+		if( rpm < 0){
+			if( rpm > mid_rpm1_){
+				mid_rpm1_ = rpm;
+				mid_rpm_k1_ = it->second;
+				std::cout<<"set minuse rpm:"<<mid_rpm1_<<std::endl;
+			}
+		}
+		if(rpm > 0 ){
+			if( rpm < mid_rpm2_){
+				mid_rpm2_ = rpm;
+			    mid_rpm_k2_ = it->second;
+			    std::cout<<"set rpm:"<<mid_rpm2_<<std::endl;
+			}
+		}
+	}
+//	int index = m_k_para_.size() / 2;
+//	it_b = m_k_para_.begin();
+//	for( ; it_b != m_k_para_.end() ; ++it_b ){
+//		if( index > 0){
+//			index--;
+//		}else{
+//			mid_rpm_ = it_b->first;
+//			mid_rpm_k_ = it_b->second;
+//			break;
+//		}
+//	}
+
+	std::cout<<"min_rpm_:" <<min_rpm_<<" min_rpm_k_:"<<min_rpm_k_<<std::endl;
+	std::cout<<"mid_rpm1_:" <<mid_rpm1_<<" mid_rpm_k1_:"<<mid_rpm_k1_<<std::endl;
+	std::cout<<"mid_rpm2_:" <<mid_rpm2_<<" mid_rpm_k2_:"<<mid_rpm_k2_<<std::endl;
+	std::cout<<"max_rpm_:" <<max_rpm_<<" max_rpm_k:"<<max_rpm_k_<<std::endl;
+}
+void t20_k_rpm::save_para(){
+	std::ofstream out;
+	out.open(k_para_, std::ios_base::out | std::ios_base::binary);
+
+	std::map<F32,F32>::iterator it = m_k_para_.begin();
+	for( ; it != m_k_para_.end() ;  ++it ){
+		out<<it->first<<" "<<it->second<<std::endl;
+	}
+}
+F32 t20_k_rpm::speed2rpm(const F32 &speed,const F32 &adia){
+	F32 rpm = speed / (adia*M_PI) * 60 ;
+	return rpm;
+}
+F32 t20_k_rpm::trans_rpm( F32 rpm ){
+
+	std::map<F32,F32>::iterator it = m_k_para_.begin();
+
+
+
+	//std::cout<<"rpm:"<<rpm<<std::endl;
+
+	if( (rpm < 0) && ( rpm > mid_rpm1_ )){
+		//std::cout<<"mid_rpm_k1_:"<<mid_rpm_k1_<<std::endl;
+		return mid_rpm_k1_ * rpm;
+	}else if( (rpm > 0) && ( rpm < mid_rpm2_ )){
+		//std::cout<<"mid_rpm_k2_:"<<mid_rpm_k2_<<std::endl;
+		return mid_rpm_k2_ * rpm;
+	}else if(  rpm < min_rpm_  ){
+		//std::cout<<"min_rpm_k_:"<<min_rpm_k_<<std::endl;
+		return min_rpm_k_ * rpm;
+	}else if(rpm >= max_rpm_){
+		//std::cout<<"max_rpm_k_:"<<max_rpm_k_<<std::endl;
+		return max_rpm_k_* rpm;
+	}
+
+	if( m_k_para_.size() > 1){
+
+		F32 rpm_b = 0;
+		F32 k_b = 0;
+
+		F32 k_para = 1.0;
+
+
+		if(it != m_k_para_.end()){
+			rpm_b = it->first;
+			k_b = it->second;
+
+		}
+
+		++it;
+		bool b_get_drop = false;
+		for( ; it != m_k_para_.end() ; ++it ){
+
+			F32 rpm_e = it->first;
+			F32 k_e = it->second;
+
+			//std::cout<<"speed:"<<speed<<" speed_b:"<<rpm_b<<" speed_e:"<<rpm_e<<std::endl;
+			if( ( rpm >= rpm_b ) && (rpm < rpm_e ) ){
+				k_para = ( k_e - k_b) / ( rpm_e - rpm_b ) ;
+				k_para = ( rpm - rpm_b ) * k_para + k_b ;
+				//std::cout<<"k_para:"<<k_para<<std::endl;
+				rpm = k_para * rpm;
+				b_get_drop = true;
+				break;
+			}
+
+			rpm_b = it->first;
+			k_b = it->second;
+		}
+
+		if(!b_get_drop){
+			rpm =  min_rpm_k_*rpm;
+			std::cout<<"err! get para k err!"<<std::endl;
+		}
+
+
+
+	}else{
+		rpm =  min_rpm_k_*rpm;
+	}
+
+	return rpm;
+
+}
+bool t20_k_rpm::calibration(F32 &k_rpm , const F32 &set_rpm , const F32 &current_rpm ){
+	std::cout<<"calibration k:"<<k_rpm<<" set_rpm:"<<set_rpm<<" current_rpm:"<<current_rpm<<std::endl;
+	if( fabs( set_rpm - current_rpm ) < 0.01){
+		return true;
+	}
+
+	if(fabs(set_rpm) > 1e-6){
+		F32 k_diff = 1 + ( set_rpm - current_rpm ) / set_rpm * 0.1;
+		std::cout<<"k_diff:"<<k_diff<<std::endl;
+		k_rpm *= k_diff;
+	}
+
+
+	return false;
+}
+
+void t20_k_rpm::set_k_para(const F32 &rpm,const F32 &k_para){
+
+	m_k_para_[rpm] = k_para;
+
+}
+
+
+
+
+
+
+
