@@ -25,6 +25,7 @@
 #include "chassis/chassis_2wd_diff.h"
 #include "chassis/chassis_forklift.h"
 #include "chassis/chassis_forklift_ex.h"
+#include "chassis/chassis_forklift_kh.h"
 #include "chassis/chassis_forklift_diff.h"
 #include "chassis/chassis_forklift_diff_kt.h"
 #include "chassis/chassis_forklift_yn.h"
@@ -34,7 +35,9 @@
 #include "chassis/chassis_bias_steer.h"
 #include "chassis/chassis_4wd_muilt.h"
 #include "chassis/chassis_omni_45.h"
-
+#include "chassis/chassis_double_steer.h"
+#include "chassis/chassis_tetrad_steer.h"
+#include "chassis/chassis_ruijie.h"
 
 #include "chassis/my_driver.h"
 #include "chassis/zhongda_driver.h"
@@ -71,6 +74,13 @@
 #include "chassis/anjing_2wd_driver.h"
 #include "chassis/omni_45_driver.h"
 #include "chassis/songling.h"
+#include "chassis/robomodule_driver.h"
+
+#include "chassis/zwd_doublesteer_driver.h"
+#include "chassis/zwd_tetradsteer_driver.h"
+#include "chassis/robomodule_mc.h"
+#include "chassis/ruijie_driver.h"
+#include "chassis/kinco_can_driver.h"
 
 #include "sim_driver.h"
 #include "copley_driver.h"
@@ -220,7 +230,7 @@ void init_shared_pool(char *argv[]){
 void inti_chassis(Chassis_base* &base){
 
 
-	std::string chassis_type = "songling";
+	std::string chassis_type = "double_steer";
 
 	Config::getConfig("chassis_type",chassis_type);
 
@@ -240,14 +250,16 @@ void inti_chassis(Chassis_base* &base){
 	//jd std::string chassis_para = "adia:0.255;D:1.52;L:0.0"
 	//std::string chassis_para = "dia:0.130;axle:0.300;D1:0.521;L1:0.0;D2:-0.521;L2:0.0";
 	//std::string chassis_para = "dia:0.064;axle:0.165;";
-	std::string chassis_para = "dia:0.250;wheel_base:2.0;wheel_axle:0.58";
+	//std::string chassis_para = "dia:0.250;wheel_base:2.0;wheel_axle:0.58";
+	std::string chassis_para = "dia:0.250;steer_max_angle:120;D1:0.5;D2:-0.5;L1:-0.0;L2:0.0";//double_steer
+	//std::string chassis_para = "dia:0.250;steer_max_angle:120;D1:0.85;D2:-0.85;D3:0.85;D4:-0.85;L1:0.8;L2:0.8;L3:-0.8;L4:-0.8";//t_steer
 
 	Config::getConfig("chassis_para",chassis_para);
 	//kps std::string chassis_com = "port:ttyUSB0;counts:60;reduction:4.3";
 	//yn std::string chassis_com = "port:ttyUSB0;counts:24;reduction:9900-31.4";
 	//jd std::string chassis_com = "port:ttyS3;counts:5900;reduction:1";
 	//colpey_can std::string chassis_com = "port:CAN;counts:10000;reduction:20";
-	std::string chassis_com = "port:USB_BOX;counts:2000;reduction:16";
+	std::string chassis_com = "port:ttyS3;counts:2000;reduction:16";
 	//std::string chassis_com = "port:ttyUSB0;ratio:0.021";
 	Config::getConfig("chassis_com",chassis_com);
 
@@ -307,12 +319,22 @@ void inti_chassis(Chassis_base* &base){
 		base =(Chassis_base*)new Chassis_2wd_diff();
 	}else if(chassis_type == "copley_can"){
 		base =(Chassis_base*)new Chassis_2wd_diff();
+	}else if(chassis_type == "kinco_can"){
+		base =(Chassis_base*)new Chassis_2wd_diff();
 	}else if(chassis_type == "yuguan"){
 		base =(Chassis_base*)new Chassis_4wd_muilt();
 	}else if(chassis_type == "omni"){
 		base =(Chassis_base*)new Chassis_omni_45();
 	}else if(chassis_type == "songling"){
 		base =(Chassis_base*)new Chassis_omni_45();
+	}else if(chassis_type == "robo"){
+		base =(Chassis_base*)new Chassis_forklift_kh();
+	}else if(chassis_type == "double_steer"){
+		base =(Chassis_base*)new Chassis_double_steer();
+	}else if(chassis_type == "tetrad_steer"){
+		base =(Chassis_base*)new Chassis_tetrad_steer();
+	}else if(chassis_type == "ruijie"){
+		base =(Chassis_base*)new Chassis_ruijie();
 //	}else if(chassis_type == "yutou"){
 //		base =(Chassis_base*)new Chassis_forklift_ex();
 	}else{
@@ -376,14 +398,24 @@ void inti_chassis(Chassis_base* &base){
 			driver = (Driver_base*)new aichong_driver();
 		}else if(chassis_type == "copley_can"){
 			driver = (Driver_base*)new copley_CANplus();
+		}else if(chassis_type == "kinco_can"){
+			driver = (Driver_base*)new kinco_can_driver();
 		}else if(chassis_type == "jiateng"){
 			driver = (Driver_base*)new jiateng_driver();
 		}else if(chassis_type == "yuguan"){
 			driver = (Driver_base*)new yuguan_driver();
 		}else if(chassis_type == "omni"){
-			driver = (Driver_base*)new omni_45_driver();
+			driver = (Driver_base*)new robomodule_mc();
 		}else if(chassis_type == "songling"){
 			driver = (Driver_base*)new songling_driver();
+		}else if(chassis_type == "robo"){
+			driver = (Driver_base*)new robomodule_driver();
+		}else if(chassis_type == "tetrad_steer"){
+			driver = (Driver_base*)new zwd_tetradsteer();
+		}else if(chassis_type == "double_steer"){
+			driver = (Driver_base*)new zwd_doublesteer();
+		}else if(chassis_type == "ruijie"){
+			driver = (Driver_base*)new Ruijie_driver();
 		//}else if(chassis_type == "yutou"){
 		//	driver = (Driver_base*)new yutou_driver();
 		}else{
@@ -472,6 +504,7 @@ int main(int argc, char *argv[])
  			//x = 0.0;
 //			std::cout<<"STARTTTTT"<<std::endl;
 //			std::cin>>x;
+//			std::cin>>y;
 //			std::cin>>a;
 //			std::cout<<"OKKKKKKKK"<<std::endl;
  			//a = 0.1;

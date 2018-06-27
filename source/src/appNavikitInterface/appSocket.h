@@ -48,13 +48,14 @@ private:
 	cTimerDiff dt_;
 
 	int client_fd;
-	int ser_sock;
+
 	int max_index;
 	unsigned int client_size;
 
 	Socket_Date m_socket;
 	boost::mutex mu_client;
-
+public:
+	int ser_sock;
 
 private:
 	void Thread_loop(void);

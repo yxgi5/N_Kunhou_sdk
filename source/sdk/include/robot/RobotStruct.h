@@ -399,10 +399,18 @@ typedef struct _SLaserSafe_Info
 {
 	U8 laser_id_;
 	U8 check_result_;
-	SLaser safe_frame_;
+	U8 active_frame_id_;
 	SLaser laser_scan_;
 
 }SLaserSafe_Info;
+
+typedef struct _SLaserSafe_Frames
+{
+	SLaser frame_[32];
+	F32 laser_dx_;
+	F32 laser_dy_;
+	U8  laser_id_;
+}SLaserSafe_Frames;
 
 typedef struct _SBattery_level
 {
@@ -410,5 +418,37 @@ typedef struct _SBattery_level
 	U32 agv_type_;
 	F32 percents_;
 }SBattery_level;
+
+typedef struct _SGyro_Data
+{
+	F32 x_;
+	F32 y_;
+	F32 z_;
+	F32 roll_;
+	F32 yaw_;
+	F32 pitch_;
+
+}SGyro_Data;
+
+typedef struct _SRION_Gyro_Data
+{
+	F32 angle_;
+	F32 angle_v_;
+	F32 advance_acc_;
+}SRION_Gyro_Data;
+
+typedef struct _SDynamic_Speed
+{
+	U8 id_;			   //id stand for one kind of speed limit type
+	U16 control_time_;  //10 means speed limit continue in 10 seconds
+	U8 back_;
+
+	F32 vx_;
+	F32 vy_;
+	F32 vw_;
+	
+
+}SDynamic_Speed;
+
 #endif//_ROBOT_STRUCT_WANGHONGTAO_20150831_
 

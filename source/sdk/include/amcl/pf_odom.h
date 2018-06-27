@@ -81,7 +81,8 @@ private:
 	F32 fh2_;
 
 	bool debug_log_;
-	std::string model_;
+//	std::string model_;
+	bool amcl_omni_;
 
 	void cal_fi_diff();
 	void cal_fi_diff_omni();

@@ -25,7 +25,7 @@ private://virtual
 	
 
 private:
-
+	F32 Angle_;
 	F32 wheel_a_dia_;	//action wheel dia 
 	F32 D_;				//vertical from action wheel to the line where is follower wheels on(axel)
 	F32 D1_;
@@ -46,6 +46,7 @@ protected:
 private:
 
 	cTimerDiff dt_;
+	cTimerDiff dt_test_;
 
 	F32 vx_ ;
 	F32 vy_ ;

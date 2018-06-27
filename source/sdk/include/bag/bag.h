@@ -31,6 +31,7 @@ public:
 	bool load_Bag(SBAG &itbag);
 	bool load_Bag(std::string file_name,SBAG &itbag);
 
+	void put_back_odom( const SOdomSpeed &odom);
 	void put_odom( const SOdomSpeed &odom,const bool &force_input = false);
 	void put_laser(const SLaser &laser);
 	void put_amcl(const SPos &amcl_pos );
@@ -42,7 +43,9 @@ public:
 
 	void begin_save();
 	void end_save(std::string file_name);
+	void ref_save(std::string file_name);
 
+	void close();
 	void show_pro();
 	void show_over();
 

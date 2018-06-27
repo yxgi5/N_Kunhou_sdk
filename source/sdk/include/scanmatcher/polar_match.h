@@ -190,6 +190,9 @@ class PolarMatcher
 private:
 	boost::function< void(const SLaserXY &laser)> show_func_;
 	void psScan2SLaserXY(SLaserXY &laser,PMScan *psScan);
+
+public:
+	int match_points_;
 };
 
 #endif //POLAR_SCAN_MATCHING_POLAR_MATCH_H

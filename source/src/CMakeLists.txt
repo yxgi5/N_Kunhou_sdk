@@ -11,6 +11,7 @@ include_directories(include)
 #ADD_SUBDIRECTORY(xmlrpc_test)
 #ADD_SUBDIRECTORY(interprocess_test)
 #ADD_SUBDIRECTORY(polygon_test)
+#ADD_SUBDIRECTORY(test_control_free)
 
 IF(BUILD_GMAP)
 ADD_SUBDIRECTORY(appOdomFilterbyLaser)
@@ -56,6 +57,7 @@ ADD_SUBDIRECTORY(plc_dio_test)
 
 ADD_SUBDIRECTORY(project_lib)
 
+ADD_SUBDIRECTORY(interprocess_movement)
 
 ADD_SUBDIRECTORY(appWebInterface)
 ADD_SUBDIRECTORY(appWebInterfaceTest)
@@ -80,8 +82,13 @@ ADD_SUBDIRECTORY(vpp_lib)
 ADD_SUBDIRECTORY(vpp_test)
 ADD_SUBDIRECTORY(t20_calibration)
 ADD_SUBDIRECTORY(canalyst2_test)
-ENDIF(BUILD_SDK)
 
+ADD_SUBDIRECTORY(RION_Gyro)
+
+#ADD_SUBDIRECTORY(interprocess_movement)
+ADD_SUBDIRECTORY(interprocess_movement_steer)
+ADD_SUBDIRECTORY(interprocess_movement_mecanum)
+ENDIF(BUILD_SDK)
 
 ADD_SUBDIRECTORY(interprocess_keycontrol)
 ADD_SUBDIRECTORY(interprocess_remote)
@@ -93,7 +100,6 @@ ADD_SUBDIRECTORY(interprocess_laser_safe)
 
 #ADD_SUBDIRECTORY(interprocess_data_server)
 ADD_SUBDIRECTORY(interprocess_ex_obstacle)
-
 
 #ADD_SUBDIRECTORY(log_test)
 

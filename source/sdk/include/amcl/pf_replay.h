@@ -8,6 +8,7 @@
 #include "buffer_con.hpp"
 #include "RobotStruct.h"
 #include "amcl/hd_particle.h"
+#include "amcl/pf_odom_pos.h"
 
 class pf_replay{
 
@@ -29,6 +30,8 @@ public:
 	void stop();
 
 	SPos amcl_pos();
+
+	void set_odom(const SOdomSpeed &odom);
 
 private:
 	
@@ -64,6 +67,10 @@ private:
 	void estimate_pos_pub(SparticleAll& pall);
 	void estimate_pos_pub2(SparticleAll& pall);
 	void sort(SparticleAW* pa,U32 psize);
+
+// hyper amcl
+	bool use_hyper_amcl_;
+	pf_odom_pos hyper_amcl_pos_;
 };
 
 typedef boost::serialization::singleton<pf_replay> Singleton_REPLAY;

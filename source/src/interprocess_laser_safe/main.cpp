@@ -31,6 +31,7 @@ using namespace NS_Laser_Safe;
 
 bool brun = true;
 int show_lasersafe = 1;
+bool use_manual_frame = true; //false: auto ; true : manual
 
 U32 obstacle_min_ = 10;      //框内光点 阀值
 F32 rotation_angle_ = 0;   //弧线时框体旋转角度
@@ -408,7 +409,7 @@ void update_tf2_laser(const SLaser &used_laser_data){
 	}else{
 		tf2_.laser_data_ = used_laser_data;
 	}
-	std::cout<<"tf2_laser"<<std::endl;
+
 }
 
 void callback(const sclose &cl){
@@ -622,17 +623,24 @@ int main(int argc, char *argv[])
 
 	SLaser active_frame;
 	SLaserSafe_Info pub_info;
+	U8 active_frameid = 0;
 
 	amcl_info_.laser_id_ = 0;
 	amcl_info_.check_result_ = (U8)Obstacle_Status::NO_OBSTACLE;
-	amcl_info_.safe_frame_ = amcl_.laser_range_straight_stop_;
+	amcl_info_.active_frame_id_ = 0;
 	tf1_info_.laser_id_ = 1;
 	tf1_info_.check_result_ = (U8)Obstacle_Status::NO_OBSTACLE;
-	tf1_info_.safe_frame_ = tf1_.laser_range_straight_stop_;
+	tf1_info_.active_frame_id_ = 0;
 	tf2_info_.laser_id_ = 2;
 	tf2_info_.check_result_ = (U8)Obstacle_Status::NO_OBSTACLE;
-	tf2_info_.safe_frame_ = tf2_.laser_range_straight_stop_;
-	obstacle_finder.setFrames(robot_shape,x_redu1,x_redu2,x_buff,x_stop,y_redu1,y_redu2,y_buff,y_stop,rotation_angle_);
+	tf2_info_.active_frame_id_ = 0;
+	if(use_manual_frame){
+		obstacle_finder.LoadFrames();
+		std::cout<<"***** use Manual frame !!!******"<<std::endl;
+	}else{
+		obstacle_finder.setFrames(robot_shape,x_redu1,x_redu2,x_buff,x_stop,y_redu1,y_redu2,y_buff,y_stop,rotation_angle_);
+		std::cout<<"***** use Auto  frame !!!******"<<std::endl;
+	}
 
 	bool init_lasershape = false;
 	int cnt = 0;
@@ -643,7 +651,7 @@ int main(int argc, char *argv[])
 //	get_tf1_laser_data.range_max_ = 20;
 //	obstacle_finder.init_lasersafe(get_tf1_laser_data,tf1_,tf1_para);
 	///end//
-
+	SLaserSafe_Frames frame;
 
 	while(brun){
 		if(init_lasershape== false)
@@ -651,7 +659,9 @@ int main(int argc, char *argv[])
 			{
 				boost::mutex::scoped_lock lock(mu_laser_amcl);
 				if(b_first_run_amcl == false){
-					obstacle_finder.init_lasersafe(get_amcl_laser_data,amcl_,amcl_para);
+					obstacle_finder.init_lasersafe(get_amcl_laser_data,amcl_,amcl_para,frame);
+					frame.laser_id_ = 0;
+					shared_pool::Publish(shared_pool::name(),"display_frames",frame);
 					cnt++;
 				}
 			}
@@ -659,16 +669,19 @@ int main(int argc, char *argv[])
 			{
 				boost::mutex::scoped_lock lock(mu_laser_tf1);
 				if(b_first_run_tf1 == false){
-					std::cout<<" tf1 para,  x: "<<tf1_para.laser_dx_<<" y: "<<tf1_para.laser_dy_<<std::endl;
-					obstacle_finder.init_lasersafe(get_tf1_laser_data,tf1_,tf1_para);
+					obstacle_finder.init_lasersafe(get_tf1_laser_data,tf1_,tf1_para,frame);
+					frame.laser_id_ = 1;
+					shared_pool::Publish(shared_pool::name(),"display_frames",frame);
 					cnt++;
 				}
 			}
 			{
 				boost::mutex::scoped_lock lock(mu_laser_tf2);
 				if(b_first_run_tf2 == false){
-					std::cout<<" tf2 para,  x: "<<tf2_para.laser_dx_<<" y: "<<tf2_para.laser_dy_<<std::endl;
-					obstacle_finder.init_lasersafe(get_tf2_laser_data,tf2_,tf2_para);
+					//std::cout<<" tf2 para,  x: "<<tf2_para.laser_dx_<<" y: "<<tf2_para.laser_dy_<<std::endl;
+					obstacle_finder.init_lasersafe(get_tf2_laser_data,tf2_,tf2_para,frame);
+					frame.laser_id_ = 2;
+					shared_pool::Publish(shared_pool::name(),"display_frames",frame);
 					cnt++;
 				}
 			}
@@ -696,9 +709,9 @@ int main(int argc, char *argv[])
 				if ((use_laser_amcl)&&(b_first_run_amcl == false))
 				{
 					boost::mutex::scoped_lock lock(mu_laser_amcl);
-					obstacle_finder.check_Obstacle(vx,vy,vw,amcl_,status_amcl,active_frame);
+					obstacle_finder.check_Obstacle(vx,vy,vw,amcl_,status_amcl,active_frameid);
 					amcl_info_.check_result_ = status_amcl;
-					amcl_info_.safe_frame_ = active_frame;
+					amcl_info_.active_frame_id_= active_frameid;
 					amcl_info_.laser_scan_ = amcl_.laser_data_;
 					//std::cout<<">>>>>Amcl status<<<: "<<(int)status_amcl<<std::endl;
 
@@ -706,18 +719,18 @@ int main(int argc, char *argv[])
 				if ((use_laser_tf1)&&(b_first_run_tf1==false))
 				{
 					boost::mutex::scoped_lock lock(mu_laser_tf1);
-					obstacle_finder.check_Obstacle(vx,vy,vw,tf1_,status_tf1,active_frame);
+					obstacle_finder.check_Obstacle(vx,vy,vw,tf1_,status_tf1,active_frameid);
 					tf1_info_.check_result_ = status_tf1;
-					tf1_info_.safe_frame_ = active_frame;
+					tf1_info_.active_frame_id_ = active_frameid;
 					tf1_info_.laser_scan_ = tf1_.laser_data_;
 					//std::cout<<">>>>>Tf1 status<<<<<<<<: "<<(int)status_tf1<<std::endl;
 				}
 				if ((use_laser_tf2)&&(b_first_run_tf2==false))
 				{
 					boost::mutex::scoped_lock lock(mu_laser_tf2);
-					obstacle_finder.check_Obstacle(vx,vy,vw,tf2_,status_tf2,active_frame);
+					obstacle_finder.check_Obstacle(vx,vy,vw,tf2_,status_tf2,active_frameid);
 					tf2_info_.check_result_ = status_tf2;
-					tf2_info_.safe_frame_ = active_frame;
+					tf2_info_.active_frame_id_ = active_frameid;
 					tf2_info_.laser_scan_ = tf2_.laser_data_;
 					//std::cout<<"Tf2 status: "<<(int)status_tf2<<std::endl;
 				}

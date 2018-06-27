@@ -9,7 +9,7 @@ public:
   Pid(){};
   ~Pid(){};
 
-  void init(const F32 &kp,const F32 &ki,const F32 &kd,const F32 &vmax = 3.0,const F32 &vmin = -3.0 );
+  void init(const F32 &kp,const F32 &ki,const F32 &kd,const F32 &vmax = 3.0,const F32 &vmin = -3.0 , const F32 &imax = 200);
   void setP(const F32 &kp);
   void setI(const F32 &ki);
   void setD(const F32 &kd);
@@ -26,6 +26,7 @@ private:
 	F32 integral_;
 	F32 vmax_;
 	F32 vmin_;
+	F32 i_max_;
 
 };
 

@@ -19,11 +19,11 @@
 #include "Geometry.h"
 #include <iostream>
 #include "boost/thread/mutex.hpp"
-
+#include "KHIniParser.h"
 
 namespace NS_Laser_Safe{
 
-/*核心结构体:  包含实时激光数据、24个避障框*/
+/*核心结构体:  包含实时激光数据、32个避障框*/
 typedef struct _Laser_safe
 {
 	SLaser laser_data_;    //s实时激光数据
@@ -161,32 +161,34 @@ public:
 
 	bool check_Obstacle(const F32 &vx, const F32 &vy,const F32 &vw,
 						const NS_Laser_Safe::Laser_safe&laser_safe_shape,
-						NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
+						NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
 
 	NS_Laser_Safe::Obstacle_Status GetStatus();
 	void usephotosensor(bool use);
 	void SetDI(const SDI di);
 	void UpdateRunStatus(const SRunStatus&runstate );
-	void init_lasersafe(SLaser &used_laser_data, NS_Laser_Safe::Laser_safe &laser_safe, SLaser_para &laser_para);
+	void init_lasersafe(SLaser &used_laser_data, NS_Laser_Safe::Laser_safe &laser_safe, SLaser_para &laser_para,SLaserSafe_Frames&frames);
 
 	void setFrames(Shape_xy robot_shape,F32 r1_x,F32 r2_x,F32 b_x,F32 s_x,F32 r1_y,F32 r2_y,F32 b_y,F32 s_y,F32 rotate_angle);
+	bool LoadFrames();
+
 private:
 	void initfnc();
 	void check_FrontStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-							NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
+							NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
 	void check_FrontLeft(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-							NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
+							NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
 	void check_FrontRight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-							NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
+							NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
 	void check_BackStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-							NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
+							NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
 	void check_BackLeft(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-							NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
+							NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
 	void check_BackRight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-							NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
+							NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
 
-	void check_LeftStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
-	void check_RightStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame);
+	void check_LeftStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
+	void check_RightStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid);
 	/*   Laser Range Finder -> check_data()
 	 *  only laser_data  < laser_range ,return true;*/
 	bool check_data( SLaser &laser_data, SLaser &laser_range,const F32 angle = 0.0);
@@ -212,11 +214,20 @@ private:
 	void find_mina(F32 a1,F32 a2,F32 a3, F32 a4,int& ind);
 	void getclosevertex(Line ln,VecPosition vb,VecPosition ve,VecPosition ray,VecPosition&close_shape_vertex);
 
+	void find_showframes( NS_Laser_Safe::Laser_safe &laser_safe,SLaserSafe_Frames & frames,F32 dx,F32 dy);
+
 	//for yg only
 	static bool check_data(SLaser &laser_data, SLaser &laser_range,int set,int &total);
+
+    void stringtoSxy(std::string shape_string,std::vector<Sxy> &shape);
+
+    void load_ini(std::map<int,std::string>& frames);
+    std::string &trimString(std::string &str);
+    std::vector<Sxy> change_VecSxy( std::vector<Sxy>,float dx,float dy);
+
 private:
 	typedef boost::function< void(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-								  	  NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame) > CALL;
+								  	  NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid) > CALL;
 
 	//bind direction with check_function();
 	std::map<NS_Laser_Safe::SHAPE_DIR, Obstacle_Detector::CALL > check_Calls_;
@@ -240,6 +251,12 @@ private:
 	std::vector<Sxy> shape_list_;
 	std::ofstream test_out;
 	NS_Laser_Safe::Safe_Frames frames_;
+
+	SLaserSafe_Frames amcl_frames_;
+	SLaserSafe_Frames tf1_frames_;
+	SLaserSafe_Frames tf2_frames_;
+
+	//INIParser * fileparse_;
 };
 
 

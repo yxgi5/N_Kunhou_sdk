@@ -27,8 +27,9 @@ private:
 
 	bool open_transfer_device();
 	void close_driver();
-
-
+	void receive_ID(std::string id);
+	void setID(std::string id);
+	bool find_id(U32 id);
 
 private:
 
@@ -42,6 +43,10 @@ private:
 	VCI_CAN_OBJ rec_[2100];
 
 	CSBuffer<can_frame,100> can_list_;
+
+	std::vector<U32> rec_id_;
+
+
 };
 
 #endif//_CHASSIS_CANALYST_2018_08_28_

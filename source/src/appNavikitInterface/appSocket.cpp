@@ -62,6 +62,10 @@ bool appSocket::Server_Init(const STRING s_ip,const int s_port)
 	  addr.sin_addr.s_addr = inet_addr(s_ip.c_str());
 	  //bool bReuseaddr=true;
 	  //setsockopt(ser_sock,SOL_SOCKET ,SO_REUSEADDR,(const char*)&bReuseaddr,sizeof(bool));
+//	  std::cout<<"ser_sock:"<<ser_sock<<std::endl;
+
+      int reuse = 1;
+      setsockopt(ser_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int));
 	  if(bind(ser_sock, (struct sockaddr*)&addr, sizeof(addr)) < 0)
 	  {
 		  std::cout<<"socket  Bind ERR!"<<std::endl;
@@ -119,8 +123,8 @@ std::string appSocket::check_json_over(void)
 
 	if( ( left_size > 0 ) || ( right_size > 0 ))
 	{
-//		std::cout<<"left_size:"<<left_size<<" right_size:"<<right_size<<std::endl;
-//		std::cout<<"total string:"<<str_total_<<std::endl;
+		std::cout<<"left_size:"<<left_size<<" right_size:"<<right_size<<std::endl;
+		std::cout<<"total string:"<<str_total_<<std::endl;
 	}
 
 	if( (left_size > 0) || (right_size > 0)){
@@ -164,7 +168,7 @@ void appSocket::sentTCPData(std::string str_res,int fd_socket)
 		return;
 	}
 	send(fd_socket,uch_res,len_res,MSG_DONTWAIT);
-//	std::cout<<"str_res:"<<str_res<<std::endl;
+	std::cout<<"str_res:"<<str_res<<std::endl;
 }
 
 
@@ -172,7 +176,7 @@ void appSocket::sentTCPData(std::string str_res,int fd_socket)
 std::string appSocket::transfer_data(std::string command)
 {
 
-//	std::cout<<"command:"<<command<<std::endl;
+	std::cout<<"command:"<<command<<std::endl;
 	std::string  result;
 
 	int state = NavikitInterfaceCall(&handle_,
@@ -215,11 +219,12 @@ void appSocket::Thread_loop(void)
 	if(m_socket.max_fd<ser_sock)
 		m_socket.max_fd=ser_sock;
 
+//	std::cout<<"m_socket.max_fd:::"<<m_socket.max_fd<<std::endl;
 	while(thread_run_)
 	{
 		if(connect_status==false)
 			continue;
-
+//		std::cout<<"Max FD"<<m_socket.max_fd<<"server FD"<<ser_sock<<std::endl;
 		fds_=m_socket.rds;
 		int ret=select(m_socket.max_fd+1,&fds_,NULL,NULL,(struct timeval *)0);
 //		std::cout<<"    ret : "<<ret<<"m_socket.max_fd  :"<<m_socket.max_fd<<std::endl;
@@ -244,7 +249,7 @@ void appSocket::Thread_loop(void)
 								max_index++;
 								*it1=client_fd;
 								FD_SET(client_fd,&m_socket.rds);
-								std::cout<<"Now Client Connect:"<<client_fd<<"client count:"<<max_index<<std::endl;
+//								std::cout<<"Now Client Connect:"<<client_fd<<"client count:"<<max_index<<std::endl;
 								break;
 							}
 						}

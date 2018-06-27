@@ -97,7 +97,6 @@ int main(int argc, char *argv[])
 	g_gpio.set_gpio_on(221);
 	g_gpio.unexport_gpio(221);
 	//test_do_gpio();
-
 	bool on_off = false;
 
 	while(brun){
@@ -121,7 +120,6 @@ int main(int argc, char *argv[])
 		}else{
 			on_off = true;
 		}
-
 		std::cout<<"out count!"<<std::endl;
 		usleep(3000000);
 	}
@@ -154,6 +152,6 @@ int main(int argc, char *argv[])
 	}
 
 	g_gpio.unexport_gpio(REBOOT_PIN);
-
+	g_gpio.unexport_gpio(210);
 	return 0;
 }

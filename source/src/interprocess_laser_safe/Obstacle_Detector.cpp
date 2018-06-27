@@ -8,8 +8,10 @@
 #include "Obstacle_Detector.h"
 
 #include "my_tf.h"
-
+#include <fstream>
 #include "Comm.h"
+#define LASER_SAFE_FRAMES "lasersafe_frames.txt"
+
 
 Obstacle_Detector::Obstacle_Detector():	rotation_angle_(20),obstacle_min_(5),use_photosensor_(false),planner_is_idel_(true)
 {
@@ -33,10 +35,10 @@ void Obstacle_Detector::setPara(F32 obstacle_min)
 }
 bool Obstacle_Detector::check_Obstacle(const F32 &vx,const F32 &vy, const F32 &vw,
 										const NS_Laser_Safe::Laser_safe&laser_safe_data,
-										NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+										NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {
 	//SLaser active_frame;
-	active_frame = laser_safe_data.laser_range_straight_stop_;
+	active_frameid = 0;
 
 	preProcessSpeed(vx,vy,vw, current_dir_);   //vx vy 判断AGV方向
 
@@ -84,11 +86,12 @@ bool Obstacle_Detector::check_Obstacle(const F32 &vx,const F32 &vy, const F32 &v
 	}
 
 
+	same_direction = true;
 	//step4:  check laser_data ?
 	if(same_direction){
 		Obstacle_Detector::CALL checkCall = check_Calls_[current_dir_];
 
-		checkCall(laser_safe_data,cs,active_frame);
+		checkCall(laser_safe_data,cs,active_frameid);
 		//std::cout<<"Check result : "<<int(cs)<<std::endl;
 		current_state_ = cs;
 		last_state_ =  current_state_;
@@ -96,7 +99,7 @@ bool Obstacle_Detector::check_Obstacle(const F32 &vx,const F32 &vy, const F32 &v
 	}else{
 		//std::cout<<"motion direction diff with  laser_location  !!! Do not check"<<std::endl;
 		cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-		active_frame = laser_safe_data.laser_range_straight_stop_;
+		active_frameid = 0;
 		current_state_ = cs;
 		last_state_ =  current_state_;
 	}
@@ -156,7 +159,7 @@ void Obstacle_Detector::UpdateRunStatus(const SRunStatus&runstate )
 	}
 }
 void Obstacle_Detector::check_FrontStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-											NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+											NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {//std::cout<<"check frontstraight "<<std::endl;
 
 	SLaser laser_data = laser_safe_info.laser_data_;
@@ -171,7 +174,7 @@ void Obstacle_Detector::check_FrontStraight(const NS_Laser_Safe::Laser_safe&lase
 		if(check_data(laser_data,laser_range_buff)){
 			//std::cout<<"find obstacle in  frontstraight buffer "<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_buff;
+			active_frameid = 2;
 			return ;
 		}
 		//std::cout<<"check frontstraight buffer res: "<<int(cs)<<std::endl;
@@ -182,7 +185,7 @@ void Obstacle_Detector::check_FrontStraight(const NS_Laser_Safe::Laser_safe&lase
 		if(check_data(laser_data,laser_range_stop)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
 			//std::cout<<"obstacle in  frontstraight stop"<<std::endl;
-			active_frame = laser_range_stop;
+			active_frameid = 3;
 			return ;
 		}
 
@@ -190,17 +193,17 @@ void Obstacle_Detector::check_FrontStraight(const NS_Laser_Safe::Laser_safe&lase
 		if(check_data(laser_data,laser_range_redu2)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE2;
 			//std::cout<<"obstacle in  frontstraight redu2"<<std::endl;
-			active_frame = laser_range_redu2;
+			active_frameid = 1;
 			return;
 		}else{
 			//检测减速1框 有无障碍物
 			if(check_data(laser_data,laser_range_redu1)){
 				cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE1;
-				active_frame = laser_range_redu1;
+				active_frameid = 0;
 				//std::cout<<"obstacle in  frontstraight redu1"<<std::endl;
 			}else{
 				cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-				active_frame = laser_range_stop;
+				active_frameid = 0;
 				//active_frame = laser_safe_info.laser_range_right_redu1_;
 
 			}
@@ -211,7 +214,7 @@ void Obstacle_Detector::check_FrontStraight(const NS_Laser_Safe::Laser_safe&lase
 }
 
 void Obstacle_Detector::check_FrontLeft(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-						NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+						NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {
 	//std::cout<<"check frontleft "<<std::endl;
 	SLaser laser_data = laser_safe_info.laser_data_;
@@ -226,7 +229,7 @@ void Obstacle_Detector::check_FrontLeft(const NS_Laser_Safe::Laser_safe&laser_sa
 		if(check_data(laser_data,laser_range_buff)){
 			//std::cout<<"obstacle in  frontleft buffer "<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_buff;
+			active_frameid = 6;
 			return ;
 		}
 	}
@@ -237,24 +240,24 @@ void Obstacle_Detector::check_FrontLeft(const NS_Laser_Safe::Laser_safe&laser_sa
 		if(check_data(laser_data,laser_range_stop)){
 			//std::cout<<"find obstacle in  frontleft stop"<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_stop;
+			active_frameid = 7;
 			return ;
 		}
 		//检测减速2框 有无障碍物
 		if(check_data(laser_data,laser_range_redu2)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE2;
-			active_frame = laser_range_redu2;
+			active_frameid = 5;
 			//std::cout<<"obstacle in  frontleft redu2"<<std::endl;
 			return;
 		}else{
 			//检测减速1框 有无障碍物
 			if(check_data(laser_data,laser_range_redu1)){
 				cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE1;
-				active_frame = laser_range_redu1;
+				active_frameid = 4;
 				//std::cout<<"obstacle in  frontleft redu1"<<std::endl;
 			}else{
 				cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-				active_frame = laser_range_stop;
+				active_frameid = 4;
 			}
 
 		}
@@ -262,7 +265,7 @@ void Obstacle_Detector::check_FrontLeft(const NS_Laser_Safe::Laser_safe&laser_sa
 	//std::cout<<"check frontleft over res: "<<int(cs)<<std::endl;
 }
 void Obstacle_Detector::check_FrontRight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-						NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+						NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {
 
 	SLaser laser_data = laser_safe_info.laser_data_;
@@ -277,7 +280,7 @@ void Obstacle_Detector::check_FrontRight(const NS_Laser_Safe::Laser_safe&laser_s
 		if(check_data(laser_data,laser_range_buff)){
 			//std::cout<<"obstacle in  frontright buffer "<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_buff;
+			active_frameid = 10;
 			return ;
 		}
 	}
@@ -288,24 +291,24 @@ void Obstacle_Detector::check_FrontRight(const NS_Laser_Safe::Laser_safe&laser_s
 		if(check_data(laser_data,laser_range_stop)){
 			//std::cout<<"find obstacle in  frontright stop"<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_stop;
+			active_frameid = 11;
 			return ;
 		}
 		//检测减速2框 有无障碍物
 		if(check_data(laser_data,laser_range_redu2)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE2;
-			active_frame = laser_range_redu2;
+			active_frameid = 9;
 			//std::cout<<"obstacle in  frontright redu2"<<std::endl;
 			return;
 		}else{
 			//检测减速1框 有无障碍物
 			if(check_data(laser_data,laser_range_redu1)){
 				cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE1;
-				active_frame = laser_range_redu1;
+				active_frameid = 8;
 				//std::cout<<"obstacle in  frontright redu1"<<std::endl;
 			}else{
 				cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-				active_frame = laser_range_stop;
+				active_frameid = 8;
 			}
 
 		}
@@ -313,7 +316,7 @@ void Obstacle_Detector::check_FrontRight(const NS_Laser_Safe::Laser_safe&laser_s
 	//std::cout<<"check frontright over res: "<<int(cs)<<std::endl;
 }
 void Obstacle_Detector::check_BackStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-						NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+						NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {
 
 	SLaser laser_data = laser_safe_info.laser_data_;
@@ -328,7 +331,7 @@ void Obstacle_Detector::check_BackStraight(const NS_Laser_Safe::Laser_safe&laser
 		if(check_data(laser_data,laser_range_buff)){
 			//std::cout<<"obstacle in  backstraight buffer "<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_buff;
+			active_frameid = 14;
 			return ;
 		}
 	}
@@ -339,24 +342,24 @@ void Obstacle_Detector::check_BackStraight(const NS_Laser_Safe::Laser_safe&laser
 		if(check_data(laser_data,laser_range_stop)){
 			//std::cout<<"find obstacle in  backstraight stop"<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_stop;
+			active_frameid = 15;
 			return ;
 		}
 		//检测减速2框 有无障碍物
 		if(check_data(laser_data,laser_range_redu2)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE2;
-			active_frame = laser_range_redu2;
+			active_frameid = 13;
 			//std::cout<<"obstacle in  backstraight redu2"<<std::endl;
 			return;
 		}else{
 			//检测减速1框 有无障碍物
 			if(check_data(laser_data,laser_range_redu1)){
 				cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE1;
-				active_frame = laser_range_redu1;
+				active_frameid = 12;
 				//std::cout<<"obstacle in  backstraight redu1"<<std::endl;
 			}else{
 				cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-				active_frame = laser_range_stop;
+				active_frameid = 12;
 			}
 
 		}
@@ -365,7 +368,7 @@ void Obstacle_Detector::check_BackStraight(const NS_Laser_Safe::Laser_safe&laser
 	//std::cout<<"check backstraight over res: "<<int(cs)<<std::endl;
 }
 void Obstacle_Detector::check_BackLeft(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-						NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+						NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {
 
 	SLaser laser_data = laser_safe_info.laser_data_;
@@ -380,7 +383,7 @@ void Obstacle_Detector::check_BackLeft(const NS_Laser_Safe::Laser_safe&laser_saf
 		if(check_data(laser_data,laser_range_buff)){
 			//std::cout<<"obstacle in  backleft buffer "<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_buff;
+			active_frameid = 18;
 			return ;
 		}
 	}
@@ -391,24 +394,24 @@ void Obstacle_Detector::check_BackLeft(const NS_Laser_Safe::Laser_safe&laser_saf
 		if(check_data(laser_data,laser_range_stop)){
 			//std::cout<<"find obstacle in  backleft stop"<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_stop;
+			active_frameid = 19;
 			return ;
 		}
 		//检测减速2框 有无障碍物
 		if(check_data(laser_data,laser_range_redu2)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE2;
-			active_frame = laser_range_redu2;
+			active_frameid = 17;
 			//std::cout<<"obstacle in  backleft redu2"<<std::endl;
 			return;
 		}else{
 			//检测减速1框 有无障碍物
 			if(check_data(laser_data,laser_range_redu1)){
 				cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE1;
-				active_frame = laser_range_redu1;
+				active_frameid = 16;
 				//std::cout<<"obstacle in  backleft redu1"<<std::endl;
 			}else{
 				cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-				active_frame = laser_range_stop;
+				active_frameid = 16;
 			}
 
 		}
@@ -416,7 +419,7 @@ void Obstacle_Detector::check_BackLeft(const NS_Laser_Safe::Laser_safe&laser_saf
 	//std::cout<<"check backleft over res: "<<int(cs)<<std::endl;
 }
 void Obstacle_Detector::check_BackRight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-						NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+						NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {
 
 	SLaser laser_data = laser_safe_info.laser_data_;
@@ -431,7 +434,7 @@ void Obstacle_Detector::check_BackRight(const NS_Laser_Safe::Laser_safe&laser_sa
 		if(check_data(laser_data,laser_range_buff)){
 			//std::cout<<"obstacle in  backright buffer "<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_buff;
+			active_frameid = 22;
 			return ;
 		}
 	}
@@ -442,24 +445,24 @@ void Obstacle_Detector::check_BackRight(const NS_Laser_Safe::Laser_safe&laser_sa
 		if(check_data(laser_data,laser_range_stop)){
 			//std::cout<<"find obstacle in  backright stop"<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_stop;
+			active_frameid = 23;
 			return ;
 		}
 		//检测减速2框 有无障碍物
 		if(check_data(laser_data,laser_range_redu2)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE2;
-			active_frame = laser_range_redu2;
+			active_frameid = 21;
 			//std::cout<<"obstacle in  backright redu2"<<std::endl;
 			return;
 		}else{
 			//检测减速1框 有无障碍物
 			if(check_data(laser_data,laser_range_redu1)){
 				cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE1;
-				active_frame = laser_range_redu1;
+				active_frameid = 20;
 				//std::cout<<"obstacle in  backright redu1"<<std::endl;
 			}else{
 				cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-				active_frame = laser_range_stop;
+				active_frameid = 20;
 			}
 
 		}
@@ -468,7 +471,7 @@ void Obstacle_Detector::check_BackRight(const NS_Laser_Safe::Laser_safe&laser_sa
 }
 
 void Obstacle_Detector::check_LeftStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-						NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+						NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {
 	//TODO:
 
@@ -484,7 +487,7 @@ void Obstacle_Detector::check_LeftStraight(const NS_Laser_Safe::Laser_safe&laser
 		if(check_data(laser_data,laser_range_buff)){
 			//std::cout<<"obstacle in  backright buffer "<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_buff;
+			active_frameid = 26;
 			return ;
 		}
 	}
@@ -495,31 +498,31 @@ void Obstacle_Detector::check_LeftStraight(const NS_Laser_Safe::Laser_safe&laser
 		if(check_data(laser_data,laser_range_stop)){
 			//std::cout<<"find obstacle in  backright stop"<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_stop;
+			active_frameid = 27;
 			return ;
 		}
 		//检测减速2框 有无障碍物
 		if(check_data(laser_data,laser_range_redu2)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE2;
-			active_frame = laser_range_redu2;
+			active_frameid = 25;
 			//std::cout<<"obstacle in  backright redu2"<<std::endl;
 			return;
 		}else{
 			//检测减速1框 有无障碍物
 			if(check_data(laser_data,laser_range_redu1)){
 				cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE1;
-				active_frame = laser_range_redu1;
+				active_frameid = 24;
 				//std::cout<<"obstacle in  backright redu1"<<std::endl;
 			}else{
 				cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-				active_frame = laser_range_stop;
+				active_frameid = 24;
 			}
 
 		}
 	}
 }
 void Obstacle_Detector::check_RightStraight(const NS_Laser_Safe::Laser_safe&laser_safe_info,
-						NS_Laser_Safe::Obstacle_Status &cs,SLaser& active_frame)
+						NS_Laser_Safe::Obstacle_Status &cs, U8& active_frameid)
 {
 	//TODO:
 
@@ -535,7 +538,7 @@ void Obstacle_Detector::check_RightStraight(const NS_Laser_Safe::Laser_safe&lase
 		if(check_data(laser_data,laser_range_buff)){
 			//std::cout<<"obstacle in  backright buffer "<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_buff;
+			active_frameid = 30;
 			return ;
 		}
 	}
@@ -546,24 +549,24 @@ void Obstacle_Detector::check_RightStraight(const NS_Laser_Safe::Laser_safe&lase
 		if(check_data(laser_data,laser_range_stop)){
 			//std::cout<<"find obstacle in  backright stop"<<std::endl;
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_STOP;
-			active_frame = laser_range_stop;
+			active_frameid = 31;
 			return ;
 		}
 		//检测减速2框 有无障碍物
 		if(check_data(laser_data,laser_range_redu2)){
 			cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE2;
-			active_frame = laser_range_redu2;
+			active_frameid = 29;
 			//std::cout<<"obstacle in  backright redu2"<<std::endl;
 			return;
 		}else{
 			//检测减速1框 有无障碍物
 			if(check_data(laser_data,laser_range_redu1)){
 				cs = NS_Laser_Safe::Obstacle_Status::OBSTACLE_REDUCE1;
-				active_frame = laser_range_redu1;
+				active_frameid = 28;
 				//std::cout<<"obstacle in  backright redu1"<<std::endl;
 			}else{
 				cs = NS_Laser_Safe::Obstacle_Status::NO_OBSTACLE;
-				active_frame = laser_range_stop;
+				active_frameid = 28;
 			}
 
 		}
@@ -690,7 +693,7 @@ void Obstacle_Detector::usephotosensor(bool use)
 }
 
 
-void Obstacle_Detector::init_lasersafe( SLaser &used_laser_data, NS_Laser_Safe::Laser_safe &laser_safe, SLaser_para &laser_para)
+void Obstacle_Detector::init_lasersafe(SLaser &used_laser_data, NS_Laser_Safe::Laser_safe &laser_safe, SLaser_para &laser_para,SLaserSafe_Frames&frames)
 {
 	laser_safe.laser_range_straight_redu1_ = used_laser_data;
 	laser_safe.laser_range_straight_redu2_ = used_laser_data;
@@ -804,6 +807,8 @@ void Obstacle_Detector::init_lasersafe( SLaser &used_laser_data, NS_Laser_Safe::
 
 	std::cout<<"*** Laser safe  calculate  min_range Over!***"<<std::endl;
 
+	find_showframes(laser_safe,frames,laser_para.laser_dx_,laser_para.laser_dy_);
+
 }
 
 
@@ -877,11 +882,11 @@ void Obstacle_Detector::lasersafe_init_shape( const std::vector<Sxy> &shape )
 
 	//printf shape
 	it1 = shape_list_.begin();
-	std::cout<<" ******* One  Shape in baselink******frame_cnt_ : "<<frame_cnt_<<std::endl;
+	//std::cout<<" ******* One  Shape in baselink******frame_cnt_ : "<<frame_cnt_<<std::endl;
 	frame_cnt_++;
 	for ( ; it1 != shape_list_.end() ; ++it1 )
 	{
-		std::cout<<"  x: "<<it1->x_<<"  y: "<<it1->y_<<std::endl;
+		//std::cout<<"  x: "<<it1->x_<<"  y: "<<it1->y_<<std::endl;
 	}
 
 //	std::cout<<"******Sxy  shapelist in baselink !******"<<std::endl;
@@ -1357,6 +1362,198 @@ void Obstacle_Detector::setFrames(Shape_xy robot_shape,F32 r1_x,F32 r2_x,F32 b_x
 	return ;
 }
 
+bool Obstacle_Detector::LoadFrames()
+{
+
+	std::map<int,std::string>  index_frame_map;
+	std::map<std::string, SubNode> ini_map;
+
+	//step1: readfile & push into map
+	load_ini(index_frame_map);
+	std::cout<<"111111  get   index_frame_map,size:"<<index_frame_map.size()<<std::endl;
+
+	//step2:  convert to vector<Sxy>
+	std::map<int,std::vector<Sxy>> map_Sxys;
+	int n = 0;
+	std::map<int,std::string>::iterator it_map = index_frame_map.begin();
+	for(;it_map!= index_frame_map.end();it_map++){
+		std::string str;
+		str = it_map->second;
+		//std::cout<<"string : "<<str<<std::endl;
+		std::vector<Sxy> fm;
+		stringtoSxy(str,fm);
+		map_Sxys[n] = fm;
+		n++;
+	}
+
+	//step3: push into frames_
+	if(map_Sxys.size()==16){
+
+		frames_.front_straight_redu1_  = map_Sxys[0];
+		frames_.front_straight_redu2_ = change_VecSxy(map_Sxys[0],-0.2,0);
+		frames_.front_straight_buff_ = change_VecSxy(map_Sxys[8],0.15,0);
+		frames_.front_straight_stop_ = map_Sxys[8];
+
+		frames_.front_left_redu1_   = map_Sxys[1];
+		frames_.front_left_redu2_   = change_VecSxy(map_Sxys[1],-0.2,0);
+		frames_.front_left_buff_    = change_VecSxy(map_Sxys[9],0.15,0);
+		frames_.front_left_stop_    = map_Sxys[9];
+
+		frames_.front_right_redu1_   = map_Sxys[2];
+		frames_.front_right_redu2_   = change_VecSxy(map_Sxys[2],-0.2,0);
+		frames_.front_right_buff_   = change_VecSxy(map_Sxys[10],0.15,0);
+		frames_.front_right_stop_   = map_Sxys[10];
+
+
+		frames_.back_straight_redu1_ = map_Sxys[3];
+		frames_.back_straight_redu2_ =change_VecSxy(map_Sxys[3],-0.2,0);
+		frames_.back_straight_buff_ =change_VecSxy(map_Sxys[11],0.15,0);
+		frames_.back_straight_stop_ = map_Sxys[11];
+
+		frames_.back_left_redu1_ = map_Sxys[4];
+		frames_.back_left_redu2_ =change_VecSxy(map_Sxys[4],-0.2,0);
+		frames_.back_left_buff_ =change_VecSxy(map_Sxys[12],0.15,0);
+		frames_.back_left_stop_ = map_Sxys[12];
+
+		frames_.back_right_redu1_ = map_Sxys[5];
+		frames_.back_right_redu2_ =change_VecSxy(map_Sxys[5],-0.2,0);
+		frames_.back_right_buff_ =change_VecSxy(map_Sxys[13],0.15,0);
+		frames_.back_right_stop_ = map_Sxys[13];
+
+		frames_.left_straight_redu1_ = map_Sxys[6];
+		frames_.left_straight_redu2_ =change_VecSxy(map_Sxys[6],0,-0.2);
+		frames_.left_straight_buff_ =change_VecSxy(map_Sxys[14],0,0.15);
+		frames_.left_straight_stop_ = map_Sxys[14];
+
+		frames_.right_straight_redu1_ = map_Sxys[7];
+		frames_.right_straight_redu2_ =change_VecSxy(map_Sxys[7],0,-0.2);
+		frames_.right_straight_buff_ =change_VecSxy(map_Sxys[15],0,0.15);
+		frames_.right_straight_stop_ = map_Sxys[15];
+
+		return true;
+	}
+
+	return false;
+}
+void Obstacle_Detector::stringtoSxy(std::string shape_string,std::vector<Sxy> &shape)
+{
+
+	std::vector<std::string> vres;
+	cComm::SplitString(shape_string,";",vres);
+	std::vector<std::string>::iterator it = vres.begin();
+	for ( ; it !=  vres.end() ; ++it)
+	{
+		std::string str = *it;
+		std::vector<std::string> vpos;
+		cComm::SplitString(str,":",vpos);
+
+		if (vpos.size() > 1)
+		{
+			Sxy xy;
+			cComm::ConvertToNum(xy.x_,vpos[0]);
+			cComm::ConvertToNum(xy.y_,vpos[1]);
+			shape.push_back(xy);
+		}
+	}
+
+}
+
+void Obstacle_Detector::load_ini(std::map<int,std::string>& frames)
+{
+	frames.clear();
+
+	std::string strline = "";
+	std::string current_index = "";
+	int current = 0;
+	std::string frame;
+
+	std::ifstream infile;
+	std::string ini_name(LASER_SAFE_FRAMES);
+	infile.open(ini_name.c_str());
+	if(infile.is_open()){
+		while (getline(infile,strline))
+		{
+			int left_pos = 0 ;
+			int right_pos = 0;
+
+			if ( (strline.npos != (left_pos = strline.find("[")))
+				&& (strline.npos != (right_pos = strline.find("]"))))
+			{
+				std::string dirname = strline.substr(left_pos+1,right_pos-1);
+				dirname = trimString(dirname);
+				//std::cout<<"dir name: "<<dirname<<std::endl;
+				current_index = dirname;
+			}
+			else
+			{
+				cComm::ConvertToNum(current,current_index);
+				{
+					frame = trimString(strline);
+					if (frame.size()>0)
+					{
+						frames[current]=frame;
+						//std::cout<<"index: "<<current<<" frame: "<<frame<<std::endl;
+					}
+				}
+			}
+		}
+		infile.close();
+	}
+	else{
+		std::cout<<"open file error!!!!!!!"<<std::endl;
+	}
+}
+std::string &Obstacle_Detector::trimString(std::string &str)
+{
+// 	int pos = 0;
+//
+// 	while(str.npos != (pos = str.find(" ")))
+// 	{
+// 		str = str.replace(pos, pos + 1, "");
+// 	}
+
+	int index = 0;
+	if( !str.empty())
+	{
+		while( (index = str.find(' ',index)) != std::string::npos)
+		{
+			str.erase(index,1);
+		}
+	}
+
+	return str;
+}
+
+std::vector<Sxy> Obstacle_Detector::change_VecSxy( std::vector<Sxy> s,float dx,float dy)
+{
+	if(s.size()>4){
+		std::vector<Sxy> frame;
+		Sxy op;
+		op.x_ = s[0].x_+dx;   //0
+		op.y_ = s[0].y_+dy;
+		frame.push_back(op);
+		op.x_ = s[1].x_+dx;   //1
+		op.y_ = s[1].y_+dy;
+		frame.push_back(op);
+		op.x_ = s[2].x_+dx;   //2
+		op.y_ = s[2].y_+dy;
+		frame.push_back(op);
+		op.x_ = s[3].x_+dx;   //3
+		op.y_ = s[3].y_+dy;
+		frame.push_back(op);
+		op.x_ = s[4].x_+dx;   //4
+		op.y_ = s[4].y_+dy;
+		frame.push_back(op);
+
+		return frame;
+
+	}else{
+		return s;
+	}
+
+
+
+}
 
  void Obstacle_Detector::s_check_Obstacle(const NS_Laser_Safe::Laser_safe&laser_safe_info,
 		                    NS_Laser_Safe::Obstacle_Status &cs,int set,int &total)
@@ -1496,3 +1693,53 @@ void Obstacle_Detector::setFrames(Shape_xy robot_shape,F32 r1_x,F32 r2_x,F32 b_x
 	return false;
  }
 
+
+ void Obstacle_Detector::find_showframes( NS_Laser_Safe::Laser_safe &laser_safe,SLaserSafe_Frames & frames,F32 dx,F32 dy)
+ {
+	 frames.laser_dx_ = dx;
+	 frames.laser_dy_ = dy;
+	 //FS
+	 frames.frame_[0] =laser_safe.laser_range_straight_redu1_;
+	 frames.frame_[1] =laser_safe.laser_range_straight_redu2_;
+	 frames.frame_[2] =laser_safe.laser_range_straight_buff_;
+	 frames.frame_[3] =laser_safe.laser_range_straight_stop_;
+	 //FL
+	 frames.frame_[4] =laser_safe.laser_range_left_redu1_;
+	 frames.frame_[5] =laser_safe.laser_range_left_redu2_;
+	 frames.frame_[6] =laser_safe.laser_range_left_buff_;
+	 frames.frame_[7] =laser_safe.laser_range_left_stop_;
+	 //FR
+	 frames.frame_[8] =laser_safe.laser_range_right_redu1_;
+	 frames.frame_[9] =laser_safe.laser_range_right_redu2_;
+	 frames.frame_[10] =laser_safe.laser_range_right_buff_;
+	 frames.frame_[11] =laser_safe.laser_range_right_stop_;
+	 //BS
+	 frames.frame_[12] =laser_safe.laser_range_straight_redu1_r_;
+	 frames.frame_[13] =laser_safe.laser_range_straight_redu2_r_;
+	 frames.frame_[14] =laser_safe.laser_range_straight_buff_r_;
+	 frames.frame_[15] =laser_safe.laser_range_straight_stop_r_;
+	 //BL
+	 frames.frame_[16] =laser_safe.laser_range_left_redu1_r_;
+	 frames.frame_[17] =laser_safe.laser_range_left_redu2_r_;
+	 frames.frame_[18] =laser_safe.laser_range_left_buff_r_;
+	 frames.frame_[19] =laser_safe.laser_range_left_stop_r_;
+	 //BR
+	 frames.frame_[20] =laser_safe.laser_range_right_redu1_r_;
+	 frames.frame_[21] =laser_safe.laser_range_right_redu2_r_;
+	 frames.frame_[22] =laser_safe.laser_range_right_buff_r_;
+	 frames.frame_[23] =laser_safe.laser_range_right_stop_r_;
+	 //LS
+	 frames.frame_[24] =laser_safe.laser_range_left_straight_redu1_;
+	 frames.frame_[25] =laser_safe.laser_range_left_straight_redu2_;
+	 frames.frame_[26] =laser_safe.laser_range_left_straight_buff_;
+	 frames.frame_[27] =laser_safe.laser_range_left_straight_stop_;
+	 //RS
+	 frames.frame_[28] =laser_safe.laser_range_right_straight_redu1_;
+	 frames.frame_[29] =laser_safe.laser_range_right_straight_redu2_;
+	 frames.frame_[30] =laser_safe.laser_range_right_straight_buff_;
+	 frames.frame_[31] =laser_safe.laser_range_right_straight_stop_;
+
+
+
+
+ }

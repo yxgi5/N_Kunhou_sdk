@@ -1,6 +1,7 @@
 set(appNavikitInterface_SRCS
-    main.cpp
-    appSocket.cpp
+#    main.cpp
+#    appSocket.cpp
+    main_oldversion.cpp
 )
 
 IF(CMAKE_BUILD_TYPE MATCHES "release")

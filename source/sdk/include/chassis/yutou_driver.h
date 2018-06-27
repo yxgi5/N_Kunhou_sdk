@@ -3,7 +3,7 @@
 
 #include "TimerDiff.h"
 #include "Comm/buffer_con.hpp"
-#include "driver_base.h"
+#include "chassis/driver_base.h"
 #include "chassis/canalyst2.h"
 
 class cTransferDevice;
@@ -68,6 +68,7 @@ private:
 	F32 wheel_speed_rpm_;
 	int alive_count_;
 
+	F32 angle_zero_;
 private://can type
 
 	typedef enum{ON_BOARD,USB_LD,USB_BOX} CAN_TYPE;

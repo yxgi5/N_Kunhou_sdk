@@ -17,14 +17,16 @@ public:
 
 	F32 trans_angle( F32 angle );
 
-	bool calibration(F32 &k_angle , const F32 &set_angle , const F32 &current_angle, const F32 &p_step);
+	bool calibration(F32 &k_angle , const F32 &set_angle , const F32 &current_angle, const F32 &gyro_angle, const F32 &p_step);
 
 	void set_k_para(const F32 &angle,const F32 &k_para);
 
 private:
 
-	std::map<F32,F32> m_k_para_;
+	F32 gyro_angle_last_;
+	S32 zero_time_;
 
+	std::map<F32,F32> m_k_para_;
 
 	F32 min_angle_k_;
 	F32 mid_angle_k_;

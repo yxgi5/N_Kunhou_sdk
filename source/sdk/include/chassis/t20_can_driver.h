@@ -23,6 +23,7 @@ public:
 	void setRPMOri(int id,F32 v);
 	S32 ReadL16Fork(void);
 	void setfork(U32 fun_code_ri, S32 fork_hight_ri);
+	F32 Angle_PID(F32 Set_Angle, F32 Cur_Angle);
 protected:
 
 
@@ -43,7 +44,6 @@ private://virtual customized :TODO
 	F32 getDiffAngle(int id);
 
 	void setAngle(int id,F32 rad_angle);
-	F32 Angle_PID(F32 Set_Angle);
 
 	F32 getAngle(int id);
 
@@ -118,6 +118,7 @@ private:
     F32 Angle_err_;
     F32 Angle_err_last_;
     F32 Angle_err_sum_;
+    F32 Set_angle_last_;
 
 	U8 fork_status_;
 	U32 fnc_code_;

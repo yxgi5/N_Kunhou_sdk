@@ -123,10 +123,12 @@ int main(int argc, char *argv[])
 					}
 				}
 			}
-			FD_SET(3,&socket_dat.rds);
+//			FD_SET(m_socket.ser_sock,&socket_dat.rds);
+			FD_SET(m_socket.ser_sock,&socket_dat.rds);
 			if(socket_dat.max_fd==0)
 			{
-				socket_dat.max_fd=3;
+//				std::cout<<"m_socket.ser_sock11:"<<m_socket.ser_sock<<std::endl;
+				socket_dat.max_fd=m_socket.ser_sock;
 			}
 			m_socket.Set_Socket_Date(socket_dat);
 		}

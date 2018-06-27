@@ -33,6 +33,7 @@ public:
 	void PrintString();
 public:
 	static std::string get_now();
+	static std::string get_now_file();
 	static long long total_ms();
 };
 

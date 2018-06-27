@@ -90,7 +90,8 @@ class PSMNode
 // 	void imuCallback (const int &imuMsg);
 // 	bool scanCallback (SPos &new_diff,const SLaser& scan);
 	bool scanMatcher(SPos &est_pos,const SLaser &cur_scan);
-	bool optimize(SPos &est_pos,const SLaser &ref_scan,const SLaser &cur_scan);
+	bool optimize( SPos &est_pos, const SLaser &ref_scan,const SLaser &cur_scan);
+	bool optimize( SPos &est_pos, int &match_point ,const SLaser &ref_scan,const SLaser &cur_scan);
 	bool optimize( SPos &est_pos,const SLaser &cur_scan );
 
 	void setShowFunction(boost::function< void(const SLaserXY &laser)> fnc){
